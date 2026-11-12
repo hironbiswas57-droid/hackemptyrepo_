@@ -1,0 +1,46 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      HOST: 0.0.0.0
+      TRUST_PROXY: "1"
+      CLIENT_ORIGIN: https://${DOMAIN}
+      HF_MODEL: ${HF_MODEL:-openai/gpt-oss-20b:fastest}
+    volumes:
+      - stillwell-data:/app/data
+    expose:
+      - "3001"
+    networks:
+      - private
+
+  proxy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN to a domain whose DNS points to this server}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - private
+
+volumes:
+  stillwell-data:
+  caddy-data:
+  caddy-config:
+
+networks:
+  private:
+    internal: false
